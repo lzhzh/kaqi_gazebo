@@ -1,0 +1,46 @@
+<launch>
+
+    <!-- Load robot description -->
+    <include file="$(find kaqi_description)/robots/upload_kaqi.launch"/>
+
+    <!-- Spawn a robot into Gazebo -->
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -model kaqi" />
+
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+        <param name="robot_description" value="robot_description" />
+        <param name="publish_frequency" value="50" />
+        <param name="tf_prefix" type="string" value="" />
+    </node>
+
+    <!-- Robot pose ekf -->
+    <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf" output="screen">
+    	<param name="output_frame" value="odom_combined"/>
+        <param name="base_footprint_frame" value="base_footprint"/>
+        <param name="freq" value="30.0"/>
+        <param name="sensor_timeout" value="1.0"/>
+        <param name="publish_tf" value="true"/>
+        <param name="odom_used" value="true"/>
+        <param name="imu_used" value="true"/>
+        <param name="vo_used" value="false"/>
+        <remap from="odom" to="odom" />
+        <remap from="imu_data" to="imu/data" />
+    </node>
+
+    <node pkg="nodelet" type="nodelet" name="mobile_base_nodelet_manager" args="manager"/>
+
+    <arg name="camera" value="head_kinect"/>
+    <arg name="depth" value="depth"/>
+    <arg name="scan_topic" default="scan"/>
+    <node pkg="nodelet" type="nodelet" name="depthimage_to_laserscan" args="load depthimage_to_laserscan/DepthImageToLaserScanNodelet /mobile_base_nodelet_manager">
+      <!-- Pixel rows to use to generate the laserscan. For each column, the scan will
+           return the minimum value for those pixels centered vertically in the image. -->
+      <param name="scan_height" value="10"/>
+      <param name="output_frame_id" value="/$(arg camera)_optical_link"/>
+      <param name="range_min" value="0.45"/>
+      <remap from="image" to="$(arg camera)/$(arg depth)/image_raw"/>
+      <remap from="scan" to="$(arg scan_topic)"/>
+      <remap from="$(arg camera)/image" to="$(arg camera)/$(arg depth)/image_raw"/>
+      <remap from="$(arg camera)/scan" to="$(arg scan_topic)"/>
+    </node>
+
+</launch>
